@@ -18,6 +18,7 @@ class ViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDe
 
     // MARK: private data
     private var xliffFile: XliffFile? { didSet { reloadUI() } }
+    private var importedUnitIDs: [String: [String]] = [:]
     
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(ViewController.toggleCompactRowsMode(_:)) { // "Compact Rows" Setting
@@ -203,7 +204,15 @@ class ViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDe
     @IBAction func activateSearchField(_ sender: AnyObject) {
         self.view.window?.makeFirstResponder(searchField)
     }
-    
+
+    @IBAction func exportToCSVMenuItemSelected(_ sender: AnyObject) {
+        exportToCSVFiles()
+    }
+
+    @IBAction func importFromCSVMenuItemSelected(_ sender: AnyObject) {
+        importFromCSVFile()
+    }
+
     // MARK: NSOutlineView Delegate and Datasource
     
     private var lastSelectedRow: Int?
@@ -252,6 +261,13 @@ class ViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDe
             if let content = transUnit.target {
                 cell.textField!.stringValue = content
                 cell.textField?.placeholderString = nil
+
+                // Colored imported trans units
+                if isTransUnitImported(transUnit) {
+                    cell.textField?.textColor = .systemGreen
+                } else {
+                    cell.textField?.textColor = .black
+                }
             } else {
                 cell.textField?.placeholderString = NSLocalizedString("No translation", comment: "Placeholder String when no translation is available")
                 cell.textField?.stringValue = ""
@@ -335,4 +351,159 @@ class ViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDe
         return outlineView.rowHeight
     }
     
+}
+
+// MARK: - Export to CSV functionality
+extension ViewController {
+
+    private func exportToCSVFiles() {
+        // Use same folder as xliff file for export folder (otherwise user home folder)
+        var outputFolder: URL
+        //        if let doc = document, let docURL = doc.fileURL {
+        //            outputFolder = docURL.deletingLastPathComponent()
+        //        } else {
+        //            outputFolder = FileManager.default
+        //        }
+
+        // Get Downloads directory for user (due to file system restriction on macOS Catalina)
+        // TODO: Examine new macOS permission system to access file system etc.
+        let dirURLs = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)
+        outputFolder = dirURLs[0]
+
+        guard let window = view.window else { return }
+
+        let panel = NSSavePanel()
+        panel.directoryURL = outputFolder
+
+        panel.beginSheetModal(for: window) { (result) in
+            if result == .OK,
+                let url = panel.url {
+
+                // Filter XliffFile to empty translations only
+                var noTransFilter = XliffFile.Filter()
+                noTransFilter.onlyNonTranslated = true
+
+                if let xliffFile = self.xliffFile {
+                    xliffFile.filter = noTransFilter
+                    self.exportToCSVFilesFor(xliffFile, outputFolder: url.deletingLastPathComponent())
+                }
+            }
+        }
+    }
+
+    private func exportToCSVFilesFor(_ xliffFile: XliffFile, outputFolder: URL) {
+        // Check files that have at least one item
+        for file in xliffFile.files where !file.items.isEmpty {
+            // Filename
+
+            if let filenameAsURL = URL(string: file.name) {
+                let filepathToName = filenameAsURL.pathComponents.reduce("") { (result, component) -> String in
+                    return result + (!result.isEmpty ? "_" : "") + component
+                }
+
+                let filename = "\(filepathToName)-\(file.sourceLanguage ?? "")_\(file.targetLanguage ?? "").csv"
+                let fileURL = outputFolder.appendingPathComponent(filename)
+                let csvString = csvStringForXliffSubFile(file)
+
+                do {
+                    try csvString.write(to: fileURL, atomically: true, encoding: .utf8)
+                } catch {
+                    print("Error on saving CSV file: \(error)")
+                }
+            }
+
+        }
+    }
+
+    private func csvStringForXliffSubFile(_ file: XliffFile.File) -> String {
+        var csvString: String = ""
+
+        // Parse file items
+        for unit in file.items {
+            csvString.append("\"\(unit.source)\";")
+            csvString.append("\"\(unit.note ?? "")\";")
+            csvString.append("\"\(unit.target ?? "")\"\n")
+        }
+
+        return csvString
+    }
+}
+
+// MARK: - Import from CSV functionality
+extension ViewController {
+
+    private func importFromCSVFile() {
+        // Choose file
+        guard let window = view.window else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+
+        panel.beginSheetModal(for: window) { (result) in
+            if result == .OK, let url = panel.url {
+                self.parseCSVFile(url)
+                self.reloadUI()
+            }
+        }
+    }
+
+    private func parseCSVFile(_ csvFile: URL) {
+        // Read file
+        guard let csvString = try? String(contentsOf: csvFile, encoding: .utf8) else { return }
+
+        // CSV parsing
+        let csvModel = CSwiftV(with: csvString, separator: ";", headers: ["Source", "Note", "Target"])
+
+        // Find File item in XLIFF-File
+        guard let xliffFile = xliffFile else { return }
+        let fileItemName = "iOSMO/Resources/Localizations/en.lproj/Localizable.strings"
+        var fileItem: XliffFile.File?
+        for afileItem in xliffFile.files {
+            if afileItem.name == fileItemName {
+                fileItem = afileItem
+                break
+            }
+        }
+
+        if let fileItem = fileItem {
+            matchImportedUnits(csvModel, for: fileItem)
+        }
+    }
+
+    private func matchImportedUnits(_ csvModel: CSwiftV, for file: XliffFile.File) {
+        // Reset imported indexes
+        var unitIDs: [String] = []
+
+        // Matching (only when target translation is not empty)
+        for csvUnit in csvModel.rows where !csvUnit[2].isEmpty {
+            let matchedIndex = file.items.firstIndex { (transUnit) -> Bool in
+                return transUnit.source == csvUnit[0]
+            }
+
+            if let index = matchedIndex {
+                let matchedUnit = file.items[index]
+                matchedUnit.target = csvUnit[2]
+                unitIDs.append(matchedUnit.id)
+            }
+        }
+
+        importedUnitIDs[file.name] = unitIDs
+    }
+
+    private func isTransUnitImported(_ transUnit: XliffFile.TransUnit) -> Bool {
+        var found = false
+
+        outerloop: for (_, transIDs) in importedUnitIDs {
+            for transID in transIDs {
+                if transUnit.id == transID {
+                    found = true
+                    break outerloop
+                }
+            }
+        }
+
+        return found
+    }
 }

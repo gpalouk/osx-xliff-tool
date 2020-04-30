@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		28C9B306245B105C001CB00B /* CSwiftV.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C9B305245B105C001CB00B /* CSwiftV.swift */; };
 		76EDA0C6219E0E24003588C4 /* multiline.xliff in Resources */ = {isa = PBXBuildFile; fileRef = 76EDA0C4219E0ABF003588C4 /* multiline.xliff */; };
 		D807847B1DC758EF009582E0 /* xliff_toolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8C0DBA91C46EF2A00320C2C /* xliff_toolTests.swift */; };
 		D888B2E81C3D851400660308 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D888B2E71C3D851400660308 /* AppDelegate.swift */; };
@@ -36,6 +37,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		28C9B305245B105C001CB00B /* CSwiftV.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CSwiftV.swift; sourceTree = "<group>"; };
 		76EDA0C4219E0ABF003588C4 /* multiline.xliff */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = multiline.xliff; sourceTree = "<group>"; };
 		D81397591C884D10009E08F8 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Main.strings; sourceTree = "<group>"; };
 		D888B2E41C3D851400660308 /* XLIFFTool.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = XLIFFTool.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -79,6 +81,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		28C9B303245B1029001CB00B /* Libs */ = {
+			isa = PBXGroup;
+			children = (
+				28C9B304245B105C001CB00B /* CSwiftV */,
+			);
+			path = Libs;
+			sourceTree = "<group>";
+		};
+		28C9B304245B105C001CB00B /* CSwiftV */ = {
+			isa = PBXGroup;
+			children = (
+				28C9B305245B105C001CB00B /* CSwiftV.swift */,
+			);
+			path = CSwiftV;
+			sourceTree = "<group>";
+		};
 		D888B2DB1C3D851400660308 = {
 			isa = PBXGroup;
 			children = (
@@ -100,6 +118,7 @@
 		D888B2E61C3D851400660308 /* xliff-tool */ = {
 			isa = PBXGroup;
 			children = (
+				28C9B303245B1029001CB00B /* Libs */,
 				D8C0DBA21C45785700320C2C /* xliff-tool.entitlements */,
 				D8C0DB9A1C44F9D400320C2C /* EditableTextField.swift */,
 				D888B2E91C3D851400660308 /* ViewController.swift */,
@@ -196,7 +215,7 @@
 				TargetAttributes = {
 					D888B2E31C3D851400660308 = {
 						CreatedOnToolsVersion = 7.2;
-						DevelopmentTeam = 5MR244XF46;
+						DevelopmentTeam = 9LN5MW98RW;
 						LastSwiftMigration = 1010;
 						SystemCapabilities = {
 							com.apple.Sandbox = {
@@ -216,6 +235,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 				Base,
 				de,
@@ -263,6 +283,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D888B2EA1C3D851400660308 /* ViewController.swift in Sources */,
+				28C9B306245B105C001CB00B /* CSwiftV.swift in Sources */,
 				D888B2F91C4161C100660308 /* WindowController.swift in Sources */,
 				D888B2E81C3D851400660308 /* AppDelegate.swift in Sources */,
 				D888B2EC1C3D851400660308 /* Document.swift in Sources */,
@@ -445,8 +466,10 @@
 				CODE_SIGN_ENTITLEMENTS = "xliff-tool/xliff-tool.entitlements";
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 9LN5MW98RW;
 				INFOPLIST_FILE = "xliff-tool/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				PRODUCT_BUNDLE_IDENTIFIER = "info.lazar.xliff-tool";
 				PRODUCT_NAME = XLIFFTool;
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
@@ -461,8 +484,10 @@
 				CODE_SIGN_ENTITLEMENTS = "xliff-tool/xliff-tool.entitlements";
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 9LN5MW98RW;
 				INFOPLIST_FILE = "xliff-tool/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				PRODUCT_BUNDLE_IDENTIFIER = "info.lazar.xliff-tool";
 				PRODUCT_NAME = XLIFFTool;
 				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
