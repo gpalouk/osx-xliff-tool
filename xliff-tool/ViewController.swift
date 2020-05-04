@@ -213,6 +213,13 @@ class ViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDe
         importFromCSVFile()
     }
 
+    @IBAction func saveDocument(_ sender: AnyObject) {
+        // On Save document reset highlighted import trans units
+        importedUnitIDs.removeAll()
+        reloadUI()
+        document?.save(sender)
+    }
+
     // MARK: NSOutlineView Delegate and Datasource
     
     private var lastSelectedRow: Int?
