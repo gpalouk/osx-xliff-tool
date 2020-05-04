@@ -19,7 +19,41 @@ class ViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDe
     // MARK: private data
     private var xliffFile: XliffFile? { didSet { reloadUI() } }
     private var importedUnitIDs: [String: [String]] = [:]
-    
+
+    // MARK: UI elements
+    private lazy var importPopUpButton: NSPopUpButton = {
+        let popUpButton = NSPopUpButton()
+        popUpButton.translatesAutoresizingMaskIntoConstraints = false
+
+        return popUpButton
+    }()
+
+    private lazy var importAccessoryView: NSView = {
+        let accessoryView = NSView()
+        accessoryView.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = NSTextField(string: "File item to import into: ")
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.isEditable = false
+        label.isBordered = false
+        label.backgroundColor = .clear
+
+        accessoryView.addSubview(label)
+        accessoryView.addSubview(importPopUpButton)
+
+        importPopUpButton.widthAnchor.constraint(equalToConstant: 250.0).isActive = true
+        importPopUpButton.topAnchor.constraint(equalTo: accessoryView.topAnchor).isActive = true
+        importPopUpButton.leadingAnchor.constraint(equalTo: label.trailingAnchor).isActive = true
+        importPopUpButton.bottomAnchor.constraint(equalTo: accessoryView.bottomAnchor).isActive = true
+        importPopUpButton.trailingAnchor.constraint(equalTo: accessoryView.trailingAnchor, constant: -16.0).isActive = true
+        label.leadingAnchor.constraint(greaterThanOrEqualTo: accessoryView.leadingAnchor).isActive = true
+        label.centerYAnchor.constraint(equalTo: accessoryView.centerYAnchor).isActive = true
+
+        accessoryView.heightAnchor.constraint(equalToConstant: 60.0).isActive = true
+
+        return accessoryView
+    }()
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(ViewController.toggleCompactRowsMode(_:)) { // "Compact Rows" Setting
             // update the menu item state to match the current dynamicRowHeight setting
@@ -443,20 +477,34 @@ extension ViewController {
         // Choose file
         guard let window = view.window else { return }
 
+        // Update import file items selection on import PopUp button
+        updateImportFileSelection()
+
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
+        panel.accessoryView = importAccessoryView
+        panel.isAccessoryViewDisclosed = true
 
         panel.beginSheetModal(for: window) { (result) in
-            if result == .OK, let url = panel.url {
-                self.parseCSVFile(url)
+            if result == .OK, let url = panel.url, let selectedFileItemName = self.importPopUpButton.titleOfSelectedItem {
+                self.parseCSVFile(url, for: selectedFileItemName)
                 self.reloadUI()
             }
         }
     }
 
-    private func parseCSVFile(_ csvFile: URL) {
+    private func updateImportFileSelection() {
+        guard let xliffFile = xliffFile else { return }
+
+        let fileItemNames = xliffFile.files.map { $0.name }
+        importPopUpButton.removeAllItems()
+        importPopUpButton.addItems(withTitles: fileItemNames)
+        importPopUpButton.selectItem(at: 0)
+    }
+
+    private func parseCSVFile(_ csvFile: URL, for fileItemName: String) {
         // Read file
         guard let csvString = try? String(contentsOf: csvFile, encoding: .utf8) else { return }
 
@@ -465,7 +513,6 @@ extension ViewController {
 
         // Find File item in XLIFF-File
         guard let xliffFile = xliffFile else { return }
-        let fileItemName = "iOSMO/Resources/Localizations/en.lproj/Localizable.strings"
         var fileItem: XliffFile.File?
         for afileItem in xliffFile.files {
             if afileItem.name == fileItemName {
