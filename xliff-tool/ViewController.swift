@@ -461,15 +461,25 @@ extension ViewController {
 
         // Parse file items
         for unit in file.items {
-            csvString.append("\"\(unit.source)\";")
-            csvString.append("\"\(unit.note ?? "")\";")
-            csvString.append("\"\(unit.target ?? "")\"\n")
+            csvString.append("\"\(unit.source.doubleQuoteEscaped())\";")
+            csvString.append("\"\(unit.note?.doubleQuoteEscaped() ?? "")\";")
+            csvString.append("\"\(unit.target?.doubleQuoteEscaped() ?? "")\"\n")
         }
 
         return csvString
     }
 }
 
+extension String {
+    // Escaping double quotes (") according RFC-4180 for CSV ( https://tools.ietf.org/html/rfc4180 )
+    func doubleQuoteEscaped() -> String {
+        return self.replacingOccurrences(of: "\"", with: "\"\"")
+    }
+
+    func doubleQuoteUnEscaped() -> String {
+        return self.replacingOccurrences(of: "\"\"", with: "\"")
+    }
+}
 // MARK: - Import from CSV functionality
 extension ViewController {
 
@@ -533,7 +543,7 @@ extension ViewController {
         // Matching (only when target translation is not empty)
         for csvUnit in csvModel.rows where !csvUnit[2].isEmpty {
             let matchedIndex = file.items.firstIndex { (transUnit) -> Bool in
-                return transUnit.source == csvUnit[0]
+                return transUnit.source == csvUnit[0].doubleQuoteUnEscaped()
             }
 
             if let index = matchedIndex {
