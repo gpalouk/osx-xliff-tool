@@ -28,6 +28,16 @@ class ViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDe
         return popUpButton
     }()
 
+    private lazy var exportSingleFileCheckBox: NSButton = {
+        let checkBox = NSButton(checkboxWithTitle: "Export single CSV file", target: nil, action: nil)
+        checkBox.translatesAutoresizingMaskIntoConstraints = false
+        checkBox.setButtonType(.switch)
+
+        checkBox.state = .on
+
+        return checkBox
+    }()
+
     private lazy var importAccessoryView: NSView = {
         let accessoryView = NSView()
         accessoryView.translatesAutoresizingMaskIntoConstraints = false
@@ -53,6 +63,21 @@ class ViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDe
 
         return accessoryView
     }()
+
+    private lazy var exportAccessoryView: NSView = {
+        let accessoryView = NSView()
+        accessoryView.translatesAutoresizingMaskIntoConstraints = false
+
+        accessoryView.addSubview(exportSingleFileCheckBox)
+
+        exportSingleFileCheckBox.trailingAnchor.constraint(equalTo: accessoryView.trailingAnchor, constant: -16.0).isActive = true
+        exportSingleFileCheckBox.centerYAnchor.constraint(equalTo: accessoryView.centerYAnchor).isActive = true
+
+        accessoryView.heightAnchor.constraint(equalToConstant: 60.0).isActive = true
+
+        return accessoryView
+    }()
+
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(ViewController.toggleCompactRowsMode(_:)) { // "Compact Rows" Setting
@@ -414,6 +439,7 @@ extension ViewController {
         guard let window = view.window else { return }
 
         let panel = NSSavePanel()
+        panel.accessoryView = exportAccessoryView
         panel.directoryURL = outputFolder
 
         panel.beginSheetModal(for: window) { (result) in
@@ -426,33 +452,55 @@ extension ViewController {
 
                 if let xliffFile = self.xliffFile {
                     xliffFile.filter = noTransFilter
-                    self.exportToCSVFilesFor(xliffFile, outputFolder: url.deletingLastPathComponent())
+                    // Determine single file flag from checkBox button
+                    let isSingleFile = self.exportSingleFileCheckBox.state == .on
+                    self.exportToCSVFilesFor(xliffFile, outputFolder: url.deletingLastPathComponent(), singleFile: isSingleFile)
                 }
             }
         }
     }
 
-    private func exportToCSVFilesFor(_ xliffFile: XliffFile, outputFolder: URL) {
+    private func exportToCSVFilesFor(_ xliffFile: XliffFile, outputFolder: URL, singleFile: Bool = false) {
+        // Global CSV string for single file export
+        var globalCSVString = ""
+
         // Check files that have at least one item
         for file in xliffFile.files where !file.items.isEmpty {
-            // Filename
+            // On single file export just append global CSV string
+            if singleFile {
+                globalCSVString.append(contentsOf: csvStringForXliffSubFile(file))
+            } else {
+                // Filename
+                if let filenameAsURL = URL(string: file.name) {
+                    let filepathToName = filenameAsURL.pathComponents.reduce("") { (result, component) -> String in
+                        return result + (!result.isEmpty ? "_" : "") + component
+                    }
 
-            if let filenameAsURL = URL(string: file.name) {
-                let filepathToName = filenameAsURL.pathComponents.reduce("") { (result, component) -> String in
-                    return result + (!result.isEmpty ? "_" : "") + component
-                }
+                    let filename = "\(filepathToName)-\(file.sourceLanguage ?? "")_\(file.targetLanguage ?? "").csv"
+                    let fileURL = outputFolder.appendingPathComponent(filename)
+                    let csvString = csvStringForXliffSubFile(file)
 
-                let filename = "\(filepathToName)-\(file.sourceLanguage ?? "")_\(file.targetLanguage ?? "").csv"
-                let fileURL = outputFolder.appendingPathComponent(filename)
-                let csvString = csvStringForXliffSubFile(file)
-
-                do {
-                    try csvString.write(to: fileURL, atomically: true, encoding: .utf8)
-                } catch {
-                    print("Error on saving CSV file: \(error)")
+                    do {
+                        try csvString.write(to: fileURL, atomically: true, encoding: .utf8)
+                    } catch {
+                        print("Error on saving CSV file: \(error)")
+                    }
                 }
             }
 
+        }
+
+        // On single file export, create that one file
+        if singleFile, !globalCSVString.isEmpty, let aFile = xliffFile.files.first {
+            // Construct file name using source and target language IDs
+            let filename = "ExportedMissingTranslations-\(aFile.sourceLanguage ?? "")_\(aFile.targetLanguage ?? "").csv"
+            let fileURL = outputFolder.appendingPathComponent(filename)
+
+            do {
+                try globalCSVString.write(to: fileURL, atomically: true, encoding: .utf8)
+            } catch {
+                print("Error on saving CSV file: \(error)")
+            }
         }
     }
 
@@ -480,6 +528,7 @@ extension String {
         return self.replacingOccurrences(of: "\"\"", with: "\"")
     }
 }
+
 // MARK: - Import from CSV functionality
 extension ViewController {
 
@@ -543,7 +592,10 @@ extension ViewController {
         // Matching (only when target translation is not empty)
         for csvUnit in csvModel.rows where !csvUnit[2].isEmpty {
             let matchedIndex = file.items.firstIndex { (transUnit) -> Bool in
-                return transUnit.source == csvUnit[0].doubleQuoteUnEscaped()
+                // TODO: UnEscape double quotes (try to conform to CSV RFC)
+                //return transUnit.source == csvUnit[0].doubleQuoteUnEscaped()
+
+                return transUnit.source == csvUnit[0]
             }
 
             if let index = matchedIndex {
